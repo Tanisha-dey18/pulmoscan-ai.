@@ -6,6 +6,13 @@ Upload a chest X-ray and PulmoScan AI returns a *Normal* / *Pneumonia* classific
 
 > **Educational prototype - not a medical device.** PulmoScan AI has not been clinically validated. Its output must never be used to diagnose, treat or rule out any condition, and it does not replace evaluation by a qualified healthcare professional.
 
+**Live demo**
+
+- App: https://pulmoscan-ai-topaz.vercel.app
+- API: https://pulmoscan-api-8wdv.onrender.com/api/health (interactive docs at `/docs`)
+
+The API runs on a free instance that sleeps after 15 minutes without traffic, so the first request can take about a minute; after that an analysis takes a few seconds.
+
 ---
 
 ## Contents
@@ -33,7 +40,7 @@ Upload a chest X-ray and PulmoScan AI returns a *Normal* / *Pneumonia* classific
 - **Measured metrics** - accuracy, precision, recall, F1, ROC-AUC and the confusion matrix are computed on a held-out test set by `ml/evaluate.py` and displayed as-is. No number in the UI is hard-coded.
 - **Careful evaluation** - patient-grouped validation split (no patient appears in both training and validation), class weighting for the imbalanced data, early stopping.
 - **Polished product UI** - React + Tailwind + Framer Motion: drag-and-drop upload, validation, loading states, skeleton loaders, toasts, interactive charts, fully responsive.
-- **Deployable** - frontend on Netlify, backend as a Docker container (Render or any container host).
+- **Deployed** - frontend as a static site (live on Vercel; Netlify configuration included), backend as a Docker container on Render.
 
 ## Results
 
@@ -329,9 +336,11 @@ The API uses roughly 420 MB of RAM with the model loaded (measured locally). Ren
 
 > `VITE_API_URL` is baked in at build time. If you change it, trigger a new deploy (Deploys → Trigger deploy).
 
+**Alternative: Vercel.** The live demo is hosted on Vercel, because the Netlify account used for this project had run out of free deploy credits. Import the repository at https://vercel.com/new, set **Root Directory** to `frontend`, add the same `VITE_API_URL` environment variable and deploy. `frontend/vercel.json` provides the SPA rewrite that `netlify.toml` provides on Netlify.
+
 ### Step 3 - connect them (CORS)
 
-Set `ALLOWED_ORIGINS` on the backend to the exact Netlify origin, for example `https://pulmoscan-ai.netlify.app` (no trailing slash; several origins can be comma-separated). The service restarts automatically. Then open the Netlify site → **Analysis** → the status pill should say *Model server online*.
+The backend only answers browser requests from origins it knows. This project's own frontends are listed in `_DEFAULT_ORIGINS` in `backend/app/config.py`. To allow a different site, either add it to that list or set the `ALLOWED_ORIGINS` environment variable on the backend host to its exact origin, for example `https://pulmoscan-ai.netlify.app` (no trailing slash; several origins can be comma-separated). The variable adds to the built-in list. The service restarts automatically. Then open the Netlify site → **Analysis** → the status pill should say *Model server online*.
 
 | Variable | Where | Example |
 | --- | --- | --- |
