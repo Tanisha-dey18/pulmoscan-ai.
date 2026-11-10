@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Dataset (1.2 GB download + caches) - recreate with: python ml/preprocess.py --download
+data/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Secrets / local config
+.env
+.env.local
+.env.*.local
+
+# Misc
+.DS_Store
+.netlify/
+ml/outputs/train.log
+.claude/

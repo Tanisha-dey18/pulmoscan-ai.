@@ -1,0 +1,11 @@
+# Runtime dependencies of the API (inference only).
+fastapi==0.162.2
+uvicorn[standard]==0.54.0
+python-multipart==0.0.33     # needed by FastAPI to receive file uploads
+pillow==13.0.0
+numpy==2.5.4
+
+# TensorFlow: the CPU-only wheel is much smaller, ideal for Linux servers.
+# On Windows/macOS the regular package is used (it is CPU-only there anyway).
+tensorflow-cpu==2.21.0; sys_platform == "linux"
+tensorflow==2.21.0; sys_platform != "linux"
