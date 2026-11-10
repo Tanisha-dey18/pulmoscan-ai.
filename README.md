@@ -33,7 +33,7 @@ Upload a chest X-ray and PulmoScan AI returns a *Normal* / *Pneumonia* classific
 - **Measured metrics** - accuracy, precision, recall, F1, ROC-AUC and the confusion matrix are computed on a held-out test set by `ml/evaluate.py` and displayed as-is. No number in the UI is hard-coded.
 - **Careful evaluation** - patient-grouped validation split (no patient appears in both training and validation), class weighting for the imbalanced data, early stopping.
 - **Polished product UI** - React + Tailwind + Framer Motion: drag-and-drop upload, validation, loading states, skeleton loaders, toasts, interactive charts, fully responsive.
-- **Deployable** - frontend on Netlify, backend as a Docker container (Hugging Face Spaces or any container host).
+- **Deployable** - frontend on Netlify, backend as a Docker container (Render or any container host).
 
 ## Results
 
@@ -290,9 +290,16 @@ git push -u origin main
 
 `data/`, `node_modules/` and virtual environments are excluded by `.gitignore`. The trained model (1.37 MB) is committed so the backend can be deployed without retraining.
 
-### Step 1 - backend on Hugging Face Spaces (free, 16 GB RAM)
+### Step 1 - backend on Render
 
-TensorFlow needs more memory than most free tiers offer (for example Render's free instance has 512 MB), which is why Spaces is recommended.
+The API uses roughly 420 MB of RAM with the model loaded (measured locally). Render's free instance has 512 MB, so it is a tight fit: if the service is killed for running out of memory, change `plan` in `render.yaml` to an instance with 1 GB or more. Free instances also sleep after 15 minutes without traffic; the next request takes about a minute while the container restarts.
+
+1. Sign up at https://render.com with your GitHub account.
+2. **New → Blueprint** → pick this repository. Render reads `render.yaml` (Docker build from `backend/`, free plan, health check on `/api/health`).
+3. When asked for `ALLOWED_ORIGINS`, enter your Netlify URL (you will know it after step 2; `http://localhost:5173` works as a placeholder until then).
+4. Wait for the build (several minutes - TensorFlow is a large install). Your API URL looks like `https://pulmoscan-api-xxxx.onrender.com`. Open `/api/health` to confirm `"model_loaded": true`.
+
+**Alternative: Hugging Face Spaces (Docker SDK).** Spaces give far more memory (16 GB), but as of November 2026 creating a Docker Space on the free hardware requires a paid PRO subscription. If you have one:
 
 1. Create an account at https://huggingface.co and choose **New Space** → name `pulmoscan-api` → SDK **Docker** → **Blank** → Public → Create.
 2. Push the contents of the `backend/` folder to the Space repository (the Space needs `Dockerfile` and `README.md` at its root - `backend/README.md` already contains the Space configuration):
@@ -308,14 +315,14 @@ TensorFlow needs more memory than most free tiers offer (for example Render's fr
 3. Wait for the build (a few minutes). Your API URL is `https://<your-hf-username>-pulmoscan-api.hf.space`. Open `/api/health` to confirm `"model_loaded": true`.
 4. In the Space: **Settings → Variables and secrets → New variable** `ALLOWED_ORIGINS` = your Netlify URL (you will know it after step 2; come back and set it then).
 
-**Alternative: Render / Railway / Fly.io.** Any host that builds a Dockerfile works: point it at `backend/` (a `render.yaml` blueprint is included), set `ALLOWED_ORIGINS`, and choose an instance with at least 1 GB RAM.
+**Other hosts (Railway, Fly.io, Koyeb, Cloud Run).** Any host that builds a Dockerfile works: point it at `backend/`, set `ALLOWED_ORIGINS`, and give it at least 512 MB of RAM (1 GB is safer).
 
 ### Step 2 - frontend on Netlify
 
 1. https://app.netlify.com → **Add new site → Import an existing project** → pick your GitHub repository.
 2. Build settings are read from `netlify.toml` (base `frontend`, command `npm run build`, publish `dist`) - leave them as detected.
 3. **Add environment variable** before deploying:
-   `VITE_API_URL` = `https://<your-hf-username>-pulmoscan-api.hf.space` (no trailing slash).
+   `VITE_API_URL` = your backend URL, e.g. `https://pulmoscan-api-xxxx.onrender.com` (no trailing slash).
 4. Deploy. Note your site URL, e.g. `https://pulmoscan-ai.netlify.app`.
 
 `netlify.toml` also configures the SPA redirect (`/* → /index.html`), so refreshing `/analyze` or `/insights` works.
@@ -324,11 +331,11 @@ TensorFlow needs more memory than most free tiers offer (for example Render's fr
 
 ### Step 3 - connect them (CORS)
 
-Set `ALLOWED_ORIGINS` on the backend to the exact Netlify origin, for example `https://pulmoscan-ai.netlify.app` (no trailing slash; several origins can be comma-separated). The Space restarts automatically. Then open the Netlify site → **Analysis** → the status pill should say *Model server online*.
+Set `ALLOWED_ORIGINS` on the backend to the exact Netlify origin, for example `https://pulmoscan-ai.netlify.app` (no trailing slash; several origins can be comma-separated). The service restarts automatically. Then open the Netlify site → **Analysis** → the status pill should say *Model server online*.
 
 | Variable | Where | Example |
 | --- | --- | --- |
-| `VITE_API_URL` | Netlify (build) | `https://yourname-pulmoscan-api.hf.space` |
+| `VITE_API_URL` | Netlify (build) | `https://pulmoscan-api-xxxx.onrender.com` |
 | `ALLOWED_ORIGINS` | Backend host | `https://pulmoscan-ai.netlify.app` |
 | `ALLOWED_ORIGIN_REGEX` | Backend host (optional) | `https://.*--pulmoscan-ai\.netlify\.app` (Netlify deploy previews) |
 
@@ -338,7 +345,8 @@ Set `ALLOWED_ORIGINS` on the backend to the exact Netlify origin, for example `h
 | --- | --- |
 | "The API URL is not configured" | `VITE_API_URL` missing in Netlify, or site not redeployed after adding it |
 | "Cannot reach the analysis server" + CORS error in the browser console | `ALLOWED_ORIGINS` does not exactly match the site origin (check `https`, no trailing slash) |
-| First request is slow | Free Spaces sleep after inactivity; the first request wakes the container |
+| First request takes about a minute | Free instances sleep after inactivity; the first request wakes the container |
+| Backend restarts or returns 502 right after deploying | Out of memory on a 512 MB instance; move to a 1 GB+ plan |
 | 404 on page refresh | `netlify.toml` not at the repository root |
 
 ## Limitations

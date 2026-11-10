@@ -3,7 +3,7 @@
 // Development : VITE_API_URL is empty -> requests go to /api/... and the Vite
 //               dev server proxies them to the local backend (vite.config.js).
 // Production  : VITE_API_URL is set in Netlify to the deployed backend URL,
-//               e.g. https://your-name-pulmoscan-api.hf.space
+//               e.g. https://pulmoscan-api-xxxx.onrender.com
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '')
 

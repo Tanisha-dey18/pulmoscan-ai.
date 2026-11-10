@@ -1,11 +1,13 @@
-# Optional: Render.com blueprint for the backend (alternative to Hugging Face Spaces).
+# Render.com blueprint for the backend.
 # New + -> Blueprint -> pick this repository.
-# Note: TensorFlow needs roughly 600 MB of RAM, so Render's 512 MB free
-# instance may run out of memory - use a 1 GB+ instance, or Hugging Face Spaces.
+# The API uses roughly 420 MB of RAM with the model loaded, which is close to
+# the 512 MB limit of the free instance. If the service is killed for running
+# out of memory, change `plan` to a 1 GB+ instance.
 services:
   - type: web
     name: pulmoscan-api
     runtime: docker
+    plan: free
     rootDir: backend
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
