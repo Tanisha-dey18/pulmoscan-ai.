@@ -14,8 +14,8 @@ PulmoScan AI is a web application that classifies a chest X-ray as *Normal* or
 *Pneumonia* using a convolutional neural network I trained in TensorFlow/Keras.
 A FastAPI backend serves the model and returns the prediction, the probability
 of each class, and a Grad-CAM heatmap showing which regions influenced the
-decision. A React frontend, deployed on Netlify, provides the upload dashboard
-and a page with the measured evaluation metrics. It is an educational
+decision. A React frontend, deployed as a static site on Vercel, provides the
+upload dashboard and a page with the measured evaluation metrics. It is an educational
 prototype, not a diagnostic tool.
 
 **2. What is the architecture of the whole system?**
@@ -23,12 +23,12 @@ Three parts: (1) `ml/` - offline scripts that preprocess data, train and
 evaluate the model; (2) `backend/` - a FastAPI service that loads the saved
 model once and exposes `/api/predict`, `/api/model/insights`, `/api/health`;
 (3) `frontend/` - a React single-page app that calls those endpoints. The
-frontend is static files on Netlify; the backend runs in a Docker container on
-a Python host (Hugging Face Spaces).
+frontend is static files on Vercel (a Netlify configuration is also in the
+repository); the backend runs in a Docker container on Render.
 
-**3. Why can't the backend also run on Netlify?**
-Netlify hosts static files and short-lived serverless functions (JavaScript/Go,
-with small size and time limits). TensorFlow is hundreds of megabytes and the
+**3. Why can't the backend run on the same host as the frontend (Vercel/Netlify)?**
+Those platforms host static files and short-lived serverless functions (with
+small size and time limits). TensorFlow is hundreds of megabytes and the
 model must stay loaded in memory, so it needs a long-running Python server.
 That is why the architecture is split and connected over HTTPS with CORS.
 
@@ -283,20 +283,39 @@ Loading takes seconds. Doing it once in FastAPI's lifespan handler and
 keeping it in memory makes every request fast.
 
 **40. What is CORS and how did you configure it?**
-Browsers block JavaScript on one origin (the Netlify site) from calling
-another origin (the API) unless the API allows it with CORS headers. The
-backend reads the allowed origins from the `ALLOWED_ORIGINS` environment
-variable, so only my frontend can call it from a browser.
+Browsers block JavaScript on one origin (the Vercel site) from calling
+another origin (the API on Render) unless the API allows it with CORS headers.
+The allowed origins are a list in `backend/app/config.py` (local development
+plus my deployed frontend), and more can be added with the `ALLOWED_ORIGINS`
+environment variable. Any other website's browser requests are refused.
 
 **41. How does the frontend know the backend URL?**
-From the build-time environment variable `VITE_API_URL`, set in Netlify. In
+From the build-time environment variable `VITE_API_URL`, set on the frontend
+host (Vercel). In
 development it is empty and the Vite dev server proxies `/api` to the local
 backend, so no localhost URL exists in the application code.
 
-**42. What does `netlify.toml` do?**
-It tells Netlify the base folder (`frontend`), the build command
-(`npm run build`), the publish folder (`dist`), and adds a redirect of every
-path to `/index.html` so React Router routes like `/analyze` work on refresh.
+**42. What do `netlify.toml` and `vercel.json` do?**
+`netlify.toml` tells Netlify the base folder (`frontend`), the build command
+(`npm run build`) and the publish folder (`dist`). Both files add a rule that
+sends every path to `/index.html`, so React Router routes like `/analyze` work
+when the page is refreshed. Without that rule the host looks for a file named
+`analyze`, does not find one and returns 404 - I hit exactly this on Vercel.
+
+**42b. Where is the project deployed, and what problems did you face?**
+Frontend on Vercel, backend on Render's free tier (512 MB RAM), code on
+GitHub. Four real problems: (1) Hugging Face Spaces, my first choice for the
+backend, now needs a paid plan for Docker Spaces, so I moved to Render;
+(2) the backend uses about 420 MB with TensorFlow loaded, close to Render's
+limit, so I restricted TensorFlow to one thread in the Dockerfile; (3) my
+Netlify account had no deploy credits left, so the frontend went to Vercel;
+(4) the first live version showed "Model server unreachable" because the
+backend's CORS list did not include the Vercel address.
+
+**42c. Why is the first request sometimes slow?**
+Render's free instance sleeps after 15 minutes without traffic. The next
+request has to start the container and load TensorFlow and the model, which
+takes about a minute. After that a prediction takes a few seconds.
 
 **43. How do you validate uploads?**
 Twice. In the browser: file type and size, for quick feedback. On the server:
