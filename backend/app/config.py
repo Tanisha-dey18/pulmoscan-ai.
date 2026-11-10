@@ -21,12 +21,19 @@ ALLOWED_FORMATS = {"JPEG", "PNG"}   # checked on the real file content, not the 
 MIN_DIMENSION = 100                 # pixels; smaller images carry too little detail
 
 # ---- CORS -----------------------------------------------------------------
-# Comma-separated list of frontend origins allowed to call this API, e.g.
-#   ALLOWED_ORIGINS=https://pulmoscan-ai.netlify.app
-_DEV_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173"
-ALLOWED_ORIGINS = [
-    o.strip().rstrip("/") for o in os.getenv("ALLOWED_ORIGINS", _DEV_ORIGINS).split(",") if o.strip()
+# Origins that are always allowed: local development and this project's own
+# deployed frontends. To allow another site, add it here or (without touching
+# the code) set the ALLOWED_ORIGINS environment variable on the host to a
+# comma-separated list, e.g. ALLOWED_ORIGINS=https://my-site.example.com
+_DEFAULT_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:4173",
+    "https://pulmoscan-ai-topaz.vercel.app",
+    "https://pulmoscan-ai-474.netlify.app",
 ]
+_EXTRA_ORIGINS = [o.strip().rstrip("/") for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+ALLOWED_ORIGINS = list(dict.fromkeys(_DEFAULT_ORIGINS + _EXTRA_ORIGINS))  # merged, no duplicates
 # Optional regex, handy for Netlify deploy previews, e.g.
 #   ALLOWED_ORIGIN_REGEX=https://.*--pulmoscan-ai\.netlify\.app
 ALLOWED_ORIGIN_REGEX = os.getenv("ALLOWED_ORIGIN_REGEX") or None
